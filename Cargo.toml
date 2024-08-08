@@ -1,0 +1,13 @@
+[package]
+name = "obfd"
+version = "1.0.0"
+edition = "2021"
+authors = ["Noah Dunbar <noah@noahdunbar.com>"]
+description = "A simple tool to organize files into folders by date."
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/The-Noah/obfd"
+
+[dependencies]
+chrono = "0.4.38"
+num_cpus = "1.15.0"
