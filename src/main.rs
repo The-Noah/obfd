@@ -1,21 +1,20 @@
 use std::{
   fs,
   path::{Path, PathBuf},
+  sync::mpsc,
 };
 
 mod thread_pool;
 use thread_pool::*;
 
 fn main() {
-  // Get file information for both local and remote directories
-  let mut files = Vec::new();
-  walk_dir(Path::new("."), &mut files);
+  let (tx, rx) = mpsc::channel();
 
-  println!("Found {} files", files.len());
+  walk_dir(Path::new("."), tx);
 
   let thread_pool = ThreadPool::default();
 
-  for path in files {
+  while let Ok(path) = rx.recv() {
     thread_pool.execute(move || {
       move_file(path);
     });
@@ -59,15 +58,15 @@ fn move_file(path: PathBuf) {
   fs::rename(&path, &new_path).expect("Error moving file");
 }
 
-fn walk_dir(path: &Path, files: &mut Vec<PathBuf>) {
+fn walk_dir(path: &Path, tx: mpsc::Sender<PathBuf>) {
   if path.is_dir() {
     for entry in fs::read_dir(path).unwrap() {
       let entry = entry.unwrap();
       let path = entry.path();
 
-      walk_dir(&path, files);
+      walk_dir(&path, tx.clone());
     }
   } else if path.is_file() {
-    files.push(path.to_path_buf());
+    tx.send(path.to_path_buf()).unwrap();
   }
 }
