@@ -10,4 +10,5 @@ repository = "https://github.com/The-Noah/obfd"
 
 [dependencies]
 chrono = "0.4.38"
-num_cpus = "1.15.0"
+futures = "0.3.30"
+tokio = { version = "1.39.3", features = ["full"] }
