@@ -1,6 +1,6 @@
 [package]
 name = "obfd"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["Noah Dunbar <noah@noahdunbar.com>"]
 description = "A simple tool to organize files into folders by date."
