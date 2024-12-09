@@ -4,8 +4,6 @@ use std::{
   pin::Pin,
 };
 
-use tokio::sync::mpsc;
-
 #[tokio::main]
 async fn main() {
   let path = std::env::args().nth(1).unwrap_or(".".to_string());
@@ -25,21 +23,13 @@ async fn main() {
 }
 
 async fn run_on_dir(path: &Path) {
-  let (tx, mut rx) = mpsc::channel(100);
-
-  walk_dir(path, tx).await;
-
-  let mut tasks = vec![];
-
-  while let Some(file_path) = rx.recv().await {
-    let path = path.to_path_buf();
-
-    tasks.push(tokio::spawn(async move {
+  walk_dir(path, &|file_path| {
+    Box::pin(async {
+      let path = path.to_path_buf();
       move_file(file_path, path).await;
-    }));
-  }
-
-  futures::future::join_all(tasks).await;
+    })
+  })
+  .await;
 }
 
 async fn move_file(path: PathBuf, working_dir: PathBuf) {
@@ -79,20 +69,24 @@ async fn move_file(path: PathBuf, working_dir: PathBuf) {
   tokio::fs::rename(&path, &new_path).await.expect("Error moving file");
 }
 
-fn walk_dir(path: &Path, tx: mpsc::Sender<PathBuf>) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+async fn walk_dir<'a, C>(path: &Path, cb: &C)
+where
+  C: Fn(PathBuf) -> Pin<Box<dyn Future<Output = ()> + 'a>>,
+{
   Box::pin(async move {
     if path.is_dir() {
-      let entries = tokio::fs::read_dir(path).await.unwrap();
-      tokio::pin!(entries);
+      let mut entries = tokio::fs::read_dir(path).await.unwrap();
 
       while let Some(entry) = entries.next_entry().await.unwrap() {
         let path = entry.path();
+
         if path.is_dir() {
-          walk_dir(&path, tx.clone()).await;
+          walk_dir(&path, cb).await;
         } else {
-          tx.send(path).await.unwrap();
+          cb(path).await;
         }
       }
     }
   })
+  .await
 }
